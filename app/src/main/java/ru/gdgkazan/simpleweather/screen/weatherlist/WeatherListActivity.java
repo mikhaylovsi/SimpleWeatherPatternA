@@ -79,7 +79,7 @@ public class WeatherListActivity extends AppCompatActivity implements CitiesAdap
     private void startInititalLoad() {
 
         SQLite.get().registerObserver(RequestTable.TABLE, this);
-        Request request = new Request(NetworkRequest.CITY_WEATHER);
+        Request request = new Request(NetworkRequest.CITY_LIST);
         NetworkService.startInititalLoading(this, request);
 
     }

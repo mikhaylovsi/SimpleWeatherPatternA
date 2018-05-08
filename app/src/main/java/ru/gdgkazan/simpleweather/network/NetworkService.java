@@ -6,13 +6,16 @@ import android.content.Intent;
 import android.support.annotation.NonNull;
 
 import java.io.IOException;
+import java.util.List;
 
 import ru.arturvasilov.sqlite.core.SQLite;
 import ru.arturvasilov.sqlite.core.Where;
 import ru.gdgkazan.simpleweather.data.GsonHolder;
 import ru.gdgkazan.simpleweather.data.model.City;
+import ru.gdgkazan.simpleweather.data.model.WeatherCity;
 import ru.gdgkazan.simpleweather.data.tables.CityTable;
 import ru.gdgkazan.simpleweather.data.tables.RequestTable;
+import ru.gdgkazan.simpleweather.data.tables.WeatherCityTable;
 import ru.gdgkazan.simpleweather.network.model.NetworkRequest;
 import ru.gdgkazan.simpleweather.network.model.Request;
 import ru.gdgkazan.simpleweather.network.model.RequestStatus;
@@ -72,6 +75,25 @@ public class NetworkService extends IntentService {
     }
 
     private void executeLoadCitiesRequest(Request request) {
+
+
+        try {
+
+            List<WeatherCity> cities = ApiFactory.getWeatherService()
+                    .getCities()
+                    .execute()
+                    .body();
+            SQLite.get().delete(WeatherCityTable.TABLE);
+            SQLite.get().insert(WeatherCityTable.TABLE, cities);
+
+        } catch (IOException e) {
+            request.setStatus(RequestStatus.ERROR);
+            request.setError(e.getMessage());
+        } finally {
+            SQLite.get().insert(RequestTable.TABLE, request);
+            SQLite.get().notifyTableChanged(RequestTable.TABLE);
+        }
+
 
 
 
