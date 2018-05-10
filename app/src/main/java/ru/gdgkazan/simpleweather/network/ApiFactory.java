@@ -2,7 +2,9 @@ package ru.gdgkazan.simpleweather.network;
 
 import android.support.annotation.NonNull;
 
+import okhttp3.Call;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
@@ -43,6 +45,18 @@ public final class ApiFactory {
                 .build();
     }
 
+
+    @NonNull
+    public static Call getCitiesCall(){
+        Request request = new Request.Builder()
+                .url(BuildConfig.API_CITIES_LIST_POINT)
+                .build();
+
+        return getClient().newCall(request);
+    }
+
+
+
     @NonNull
     private static OkHttpClient getClient() {
         OkHttpClient client = sClient;
@@ -54,7 +68,11 @@ public final class ApiFactory {
                 }
             }
         }
+
+
+
         return client;
+
     }
 
     @NonNull

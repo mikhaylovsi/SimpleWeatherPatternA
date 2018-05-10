@@ -5,7 +5,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.support.annotation.NonNull;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 
 import ru.arturvasilov.sqlite.core.SQLite;
@@ -79,12 +83,22 @@ public class NetworkService extends IntentService {
 
         try {
 
-            List<WeatherCity> cities = ApiFactory.getWeatherService()
-                    .getCities()
-                    .execute()
-                    .body();
-            SQLite.get().delete(WeatherCityTable.TABLE);
-            SQLite.get().insert(WeatherCityTable.TABLE, cities);
+            InputStream is = ApiFactory.getCitiesCall().execute().body().byteStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            String line;
+            ArrayList<WeatherCity> weatherCities = new ArrayList<>();
+            reader.readLine();
+            while ((line = reader.readLine()) != null) {
+                String[] lineArray = line.split("\t");
+                int cityId = Integer.parseInt(lineArray[0]);
+                String cityName = lineArray[1];
+                WeatherCity weatherCity = new WeatherCity(cityId, cityName);
+
+                weatherCities.add(weatherCity);
+            }
+            is.close();
+
+            SQLite.get().insert(WeatherCityTable.TABLE, weatherCities);
 
         } catch (IOException e) {
             request.setStatus(RequestStatus.ERROR);
@@ -93,11 +107,6 @@ public class NetworkService extends IntentService {
             SQLite.get().insert(RequestTable.TABLE, request);
             SQLite.get().notifyTableChanged(RequestTable.TABLE);
         }
-
-
-
-
-
     }
 
     private void executeCityRequest(@NonNull Request request, @NonNull String cityName) {
