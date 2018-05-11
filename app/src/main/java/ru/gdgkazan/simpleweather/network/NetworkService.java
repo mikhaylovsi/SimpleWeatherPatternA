@@ -87,8 +87,13 @@ public class NetworkService extends IntentService {
     private List<WeatherCity> findWeatherCitiesByNames(ArrayList<String> cityNames) {
 
         Where where = Where.create();
+
         for(String cityName : cityNames) {
-            where.like(WeatherCityTable.CITY_NAME, cityName);
+            where.equalTo(WeatherCityTable.CITY_NAME, cityName);
+            if(where.whereArgs() != null && where.whereArgs().length < cityNames.size()){
+                where.or();
+            }
+
         }
 
        return  SQLite.get().query(WeatherCityTable.TABLE, where);
