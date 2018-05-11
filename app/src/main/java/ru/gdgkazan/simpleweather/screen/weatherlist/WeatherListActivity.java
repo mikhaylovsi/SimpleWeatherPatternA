@@ -71,16 +71,23 @@ public class WeatherListActivity extends AppCompatActivity implements CitiesAdap
          * 7) Modify all the network layer to create a universal way for managing queries with pattern A
          */
 
-        startInititalLoad();
+        List<City> cities = getInitialCities();
+
+        ArrayList<String> cityNames = new ArrayList<>();
+        for(int i = 0; i < cities.size(); i++){
+            cityNames.add(cities.get(i).getName());
+        }
+
+        startInititalLoad(cityNames);
 
 
     }
 
-    private void startInititalLoad() {
+    private void startInititalLoad(ArrayList<String> cityNames) {
 
         SQLite.get().registerObserver(RequestTable.TABLE, this);
         Request request = new Request(NetworkRequest.CITY_LIST);
-        NetworkService.startInititalLoading(this, request);
+        NetworkService.startInititalLoading(this, request, cityNames);
 
     }
 

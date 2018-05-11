@@ -31,6 +31,7 @@ public class NetworkService extends IntentService {
 
     private static final String REQUEST_KEY = "request";
     private static final String CITY_NAME_KEY = "city_name";
+    private static final String CITY_NAMES_LIST = "city_names_list";
 
     public static void start(@NonNull Context context, @NonNull Request request, @NonNull String cityName) {
         Intent intent = new Intent(context, NetworkService.class);
@@ -40,9 +41,10 @@ public class NetworkService extends IntentService {
     }
 
 
-    public static void startInititalLoading(@NonNull Context context, @NonNull Request request) {
+    public static void startInititalLoading(@NonNull Context context, @NonNull Request request, ArrayList<String> cityNames) {
         Intent intent = new Intent(context, NetworkService.class);
         intent.putExtra(REQUEST_KEY, GsonHolder.getGson().toJson(request));
+        intent.putStringArrayListExtra(CITY_NAMES_LIST, cityNames);
         context.startService(intent);
     }
 
@@ -71,15 +73,30 @@ public class NetworkService extends IntentService {
                 executeCityRequest(request, cityName);
                 break;
             case NetworkRequest.CITY_LIST:
-                executeLoadCitiesRequest(request);
+                if(executeLoadCitiesRequest(request)){
+                    ArrayList<String> cityNames = intent.getStringArrayListExtra(CITY_NAMES_LIST);
+                    List<WeatherCity> weatherCities = findWeatherCitiesByNames(cityNames);
+                }
                 break;
         }
 
 
     }
 
-    private void executeLoadCitiesRequest(Request request) {
 
+    private List<WeatherCity> findWeatherCitiesByNames(ArrayList<String> cityNames) {
+
+        Where where = Where.create();
+        for(String cityName : cityNames) {
+            where.like(WeatherCityTable.CITY_NAME, cityName);
+        }
+
+       return  SQLite.get().query(WeatherCityTable.TABLE, where);
+    }
+
+    private boolean executeLoadCitiesRequest(Request request) {
+
+        boolean loadCitiesSuccess = false;
 
         try {
 
@@ -93,12 +110,11 @@ public class NetworkService extends IntentService {
                 int cityId = Integer.parseInt(lineArray[0]);
                 String cityName = lineArray[1];
                 WeatherCity weatherCity = new WeatherCity(cityId, cityName);
-
                 weatherCities.add(weatherCity);
             }
             is.close();
-
             SQLite.get().insert(WeatherCityTable.TABLE, weatherCities);
+            loadCitiesSuccess = true;
 
         } catch (IOException e) {
             request.setStatus(RequestStatus.ERROR);
@@ -107,6 +123,9 @@ public class NetworkService extends IntentService {
             SQLite.get().insert(RequestTable.TABLE, request);
             SQLite.get().notifyTableChanged(RequestTable.TABLE);
         }
+
+        return loadCitiesSuccess;
+
     }
 
     private void executeCityRequest(@NonNull Request request, @NonNull String cityName) {
