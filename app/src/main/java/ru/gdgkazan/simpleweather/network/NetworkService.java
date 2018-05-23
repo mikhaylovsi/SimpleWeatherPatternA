@@ -16,6 +16,7 @@ import ru.arturvasilov.sqlite.core.SQLite;
 import ru.arturvasilov.sqlite.core.Where;
 import ru.gdgkazan.simpleweather.data.GsonHolder;
 import ru.gdgkazan.simpleweather.data.model.City;
+import ru.gdgkazan.simpleweather.data.model.CityWeatherList;
 import ru.gdgkazan.simpleweather.data.model.WeatherCity;
 import ru.gdgkazan.simpleweather.data.tables.CityTable;
 import ru.gdgkazan.simpleweather.data.tables.RequestTable;
@@ -23,6 +24,8 @@ import ru.gdgkazan.simpleweather.data.tables.WeatherCityTable;
 import ru.gdgkazan.simpleweather.network.model.NetworkRequest;
 import ru.gdgkazan.simpleweather.network.model.Request;
 import ru.gdgkazan.simpleweather.network.model.RequestStatus;
+
+import static ru.gdgkazan.simpleweather.network.ApiFactory.getWeatherService;
 
 /**
  * @author Artur Vasilov
@@ -76,10 +79,60 @@ public class NetworkService extends IntentService {
                 if(executeLoadCitiesRequest(request)){
                     ArrayList<String> cityNames = intent.getStringArrayListExtra(CITY_NAMES_LIST);
                     List<WeatherCity> weatherCities = findWeatherCitiesByNames(cityNames);
+                    loadCitiesWeather(weatherCities);
+                    
                 }
                 break;
         }
 
+
+    }
+
+    private void loadCitiesWeather(List<WeatherCity> weatherCities) {
+
+        cleanCityTable();
+
+        StringBuilder sb = new StringBuilder();
+
+        int i = 0;
+
+        for(WeatherCity weatherCity : weatherCities){
+
+            if(i > 0) {
+                sb.append(",");
+            }
+
+            sb.append(weatherCity.getCityId());
+
+            if(i == 19){
+                String cityIDs = sb.toString();
+                sb.delete(0, sb.length());
+
+                findAndWriteWeather(cityIDs);
+
+                i = -1;
+            }
+
+            i++;
+
+        }
+    }
+
+    private void cleanCityTable() {
+        List<City> cities = SQLite.get().query(CityTable.TABLE,  Where.create());
+        if(cities.size() > 0){
+            SQLite.get().delete(CityTable.TABLE);
+        }
+    }
+
+    private void findAndWriteWeather(String cityIDs) {
+
+        try{
+            CityWeatherList cities = getWeatherService().getAllWeather(cityIDs).execute().body();
+            SQLite.get().insert(CityTable.TABLE, cities.getList());
+        } catch (IOException e){
+            e.printStackTrace();
+        }
 
     }
 
@@ -135,7 +188,7 @@ public class NetworkService extends IntentService {
 
     private void executeCityRequest(@NonNull Request request, @NonNull String cityName) {
         try {
-            City city = ApiFactory.getWeatherService()
+            City city = getWeatherService()
                     .getWeather(cityName)
                     .execute()
                     .body();

@@ -13,5 +13,12 @@ public class WeatherApp extends Application {
     public void onCreate() {
         super.onCreate();
         SQLite.initialize(this);
+
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread thread, Throwable throwable) {
+                int a = 5;
+            }
+        });
     }
 }
