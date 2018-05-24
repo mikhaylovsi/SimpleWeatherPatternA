@@ -76,11 +76,22 @@ public class NetworkService extends IntentService {
                 executeCityRequest(request, cityName);
                 break;
             case NetworkRequest.CITY_LIST:
-                if(executeLoadCitiesRequest(request)){
+                try {
+                    if(weatherCityNotLoaded()) {
+                        executeLoadCitiesRequest();
+                    }
                     ArrayList<String> cityNames = intent.getStringArrayListExtra(CITY_NAMES_LIST);
                     List<WeatherCity> weatherCities = findWeatherCitiesByNames(cityNames);
                     loadCitiesWeather(weatherCities);
-                    
+
+                    request.setStatus(RequestStatus.SUCCESS);
+
+                } catch (IOException e) {
+                    request.setStatus(RequestStatus.ERROR);
+                    request.setError(e.getMessage());
+                } finally {
+                    SQLite.get().insert(RequestTable.TABLE, request);
+                    SQLite.get().notifyTableChanged(RequestTable.TABLE);
                 }
                 break;
         }
@@ -88,7 +99,13 @@ public class NetworkService extends IntentService {
 
     }
 
-    private void loadCitiesWeather(List<WeatherCity> weatherCities) {
+    private boolean weatherCityNotLoaded() {
+
+       return  SQLite.get().query(WeatherCityTable.TABLE).size() == 0;
+
+    }
+
+    private void loadCitiesWeather(List<WeatherCity> weatherCities) throws IOException {
 
         cleanCityTable();
 
@@ -125,14 +142,10 @@ public class NetworkService extends IntentService {
         }
     }
 
-    private void findAndWriteWeather(String cityIDs) {
+    private void findAndWriteWeather(String cityIDs) throws IOException {
 
-        try{
             CityWeatherList cities = getWeatherService().getAllWeather(cityIDs).execute().body();
             SQLite.get().insert(CityTable.TABLE, cities.getList());
-        } catch (IOException e){
-            e.printStackTrace();
-        }
 
     }
 
@@ -152,38 +165,21 @@ public class NetworkService extends IntentService {
        return  SQLite.get().query(WeatherCityTable.TABLE, where);
     }
 
-    private boolean executeLoadCitiesRequest(Request request) {
-
-        boolean loadCitiesSuccess = false;
-
-        try {
-
-            InputStream is = ApiFactory.getCitiesCall().execute().body().byteStream();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-            String line;
-            ArrayList<WeatherCity> weatherCities = new ArrayList<>();
-            reader.readLine();
-            while ((line = reader.readLine()) != null) {
-                String[] lineArray = line.split("\t");
-                int cityId = Integer.parseInt(lineArray[0]);
-                String cityName = lineArray[1];
-                WeatherCity weatherCity = new WeatherCity(cityId, cityName);
-                weatherCities.add(weatherCity);
-            }
-            is.close();
-            SQLite.get().insert(WeatherCityTable.TABLE, weatherCities);
-            loadCitiesSuccess = true;
-
-        } catch (IOException e) {
-            request.setStatus(RequestStatus.ERROR);
-            request.setError(e.getMessage());
-        } finally {
-            SQLite.get().insert(RequestTable.TABLE, request);
-            SQLite.get().notifyTableChanged(RequestTable.TABLE);
+    private void executeLoadCitiesRequest() throws IOException {
+        InputStream is = ApiFactory.getCitiesCall().execute().body().byteStream();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+        String line;
+        ArrayList<WeatherCity> weatherCities = new ArrayList<>();
+        reader.readLine();
+        while ((line = reader.readLine()) != null) {
+            String[] lineArray = line.split("\t");
+            int cityId = Integer.parseInt(lineArray[0]);
+            String cityName = lineArray[1];
+            WeatherCity weatherCity = new WeatherCity(cityId, cityName);
+            weatherCities.add(weatherCity);
         }
-
-        return loadCitiesSuccess;
-
+        is.close();
+        SQLite.get().insert(WeatherCityTable.TABLE, weatherCities);
     }
 
     private void executeCityRequest(@NonNull Request request, @NonNull String cityName) {
